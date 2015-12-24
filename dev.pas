@@ -1,7 +1,6 @@
-
-
 program plcopiler;
 uses dos;
+
 const norw=20;       { no. of reserved words }
       txmax=100;     { length of identifier table }
       bmax=20;       { length of block inormation table }
@@ -107,7 +106,7 @@ var ch:char;           { last character read }
 {*********************************************************}
 
 procedure initial;
- begin
+begin  {init}
   word[ 1]:='and       '; word[ 2]:='array     ';
   word[ 3]:='begin     '; word[ 4]:='call      ';
   word[ 5]:='const     '; word[ 6]:='do        ';
@@ -166,12 +165,13 @@ procedure initial;
   display[0]:=0;
   cc:=0; cx:=0; ll:=0; ch:=' '; kk:=al; bx:=1;  tx:=-1;
   lx:=0
- end;   {init}
+end;   {init}
 
- procedure enterpreid;
-   procedure enter(x0:alfa;x1:oobject;
-                  x2:types;x3:integer);
-   begin
+procedure enterpreid;
+
+  procedure enter(x0:alfa;x1:oobject;
+                x2:types;x3:integer);
+  begin
     tx:=tx+1;
     with nametab[tx] do
     begin
@@ -184,56 +184,61 @@ procedure initial;
         typel:              size:=x3
       end
     end
-   end;
-  begin
-   enter('          ',variable,notyp,0);       { sentinel }
-   enter('char      ',typel, chars,1);
-   enter('integer   ',typel,ints,  1);
-   enter('boolean   ',typel,bool,  1);
-   enter('false     ',konstant,bool,  0);
-   enter('true      ',konstant,bool,  1);
-   enter('read      ',prosedure,notyp,1);
-   enter('write     ',prosedure,notyp,2);
-   btab[0].last:=tx; btab[0].lastpar:=1;
-   btab[0].psize:=0; btab[0].vsize:=0
-  end;       {enterprid}
+  end;
 
- procedure error(n:integer);
-   begin writeln(listfile,'****',' ':cc-1,'^',n:2);
-        err:=err+1
-   end; { error }
+begin  { enterprid }
+  enter('          ',variable,notyp,0);       { sentinel }
+  enter('char      ',typel, chars,1);
+  enter('integer   ',typel,ints,  1);
+  enter('boolean   ',typel,bool,  1);
+  enter('false     ',konstant,bool,  0);
+  enter('true      ',konstant,bool,  1);
+  enter('read      ',prosedure,notyp,1);
+  enter('write     ',prosedure,notyp,2);
+  btab[0].last:=tx; btab[0].lastpar:=1;
+  btab[0].psize:=0; btab[0].vsize:=0
+end;   { enterprid }
+
+procedure error (n:integer);
+begin { error }
+  writeln(listfile,'****',' ':cc-1,'^',n:2);
+  err:=err+1
+end;  { error }
 
 
- procedure getsym;
-    label 1;
-    var i,k,j:integer;
-    procedure getch;
+procedure getsym;
+  label 1;
+  var i,k,j:integer;
+
+  procedure getch;
+  begin  { getch }
+    if cc=ll then   { get character to end of line }
+    { read next line }
     begin
-      if cc=ll then   { get character to end of line }
-      { read next line }
-      begin
-        if eof(sfile) then
-          begin
-            writeln('program incomplete');
-            close(sfile);
-            exit;
-          end;
-        ll:=0; cc:=0; write(listfile,cx:4,' ');    {print code address }
-        while not eoln(sfile) do
-          begin
-            ll:=ll+1; read(sfile,ch); write(listfile,ch);
-            line[ll]:=ch
-          end;
-        writeln(listfile); readln(sfile);
-        ll:=ll+1; line[ll]:=' '  {process end-line}
-      end;
-      cc:=cc+1; ch:=line[cc]
-    end;  { getch }
-  begin  {getsym}
- 1:   while ch=' ' do getch;
-    case ch of
-    'a','b','c','d','e','f','g','h','i','j','k','l','m','n',
-    'o','p','q','r','s','t','u','v','w','x','y','z':
+      if eof(sfile) then
+        begin
+          writeln('program incomplete');
+          close(sfile);
+          exit;
+        end;
+      ll:=0; cc:=0; write(listfile,cx:4,' ');    {print code address }
+      while not eoln(sfile) do
+        begin
+          ll:=ll+1; read(sfile,ch); write(listfile,ch);
+          line[ll]:=ch
+        end;
+      writeln(listfile); readln(sfile);
+      ll:=ll+1; line[ll]:=' '  {process end-line}
+    end;
+    cc:=cc+1; ch:=line[cc]
+  end;   { getch }
+
+begin  { getsym }
+  1:
+  while ch=' ' do getch;
+  case ch of
+  'a','b','c','d','e','f','g','h','i','j','k','l','m','n',
+  'o','p','q','r','s','t','u','v','w','x','y','z':
     begin   { identifier or reserved word }
       k:=0;
       repeat
@@ -255,508 +260,519 @@ procedure initial;
       if i-1>j then sym:=wsym[k]
       else sym:=ident
     end;
-    '0','1','2','3','4','5','6','7','8','9':
-      begin { number }
-        k:=0; num:=0; sym:=intcon;
-        repeat
-          num:=10*num+(ord(ch)-ord('0'));
-          k:=k+1; getch
-        until not (ch in ['0'..'9']);
-        if k>nmax then error(47)
-      end;
-   ':':
-        begin
-          getch;
-          if ch='=' then
-            begin sym:=becomes; getch end
-          else sym:=colon
-        end ;
-   '<' :
-        begin
-            getch;
-            if ch='=' then
-              begin sym:=leq; getch end
-            else
-              if ch='>' then
-                begin sym:=neq; getch end
-              else sym:=lss
-          end ;
-   '>' :
-        begin
-              getch;
-              if ch='=' then
-                begin sym:=geq; getch end
-              else sym:=gtr
-        end  ;
-   '.' :
-        begin
-          getch;
-          if ch='.'
-            then  begin
-                   sym:=colon;getch
-                  end
-            else   sym:=period
-         end;
-   ''''  :
-        begin
-          getch;
-          sym:=charcon;num:=ord(ch);
-          getch;
-          if ch='''' then getch
-                     else error(48)
-        end;
-   '+','-','*','/','(',')','=','[',']',';',',':
-        begin
-          sym:=ssym[ch];getch
-        end;
-   else
-       begin
-         error(0); getch;
-         goto 1
-       end
-    end  { case }
-  end;  { getsym }
+  '0','1','2','3','4','5','6','7','8','9':
+    begin { number }
+      k:=0; num:=0; sym:=intcon;
+      repeat
+        num:=10*num+(ord(ch)-ord('0'));
+        k:=k+1; getch
+      until not (ch in ['0'..'9']);
+      if k>nmax then error(47)
+    end;
+  ':':
+    begin
+      getch;
+      if ch='=' then
+        begin sym:=becomes; getch end
+      else sym:=colon
+    end ;
+  '<':
+    begin
+      getch;
+      if ch='=' then
+        begin sym:=leq; getch end
+      else
+        if ch='>' then
+          begin sym:=neq; getch end
+        else sym:=lss
+    end ;
+  '>':
+    begin
+      getch;
+      if ch='=' then
+        begin sym:=geq; getch end
+      else sym:=gtr
+    end;
+  '.':
+    begin
+      getch;
+      if ch='.' then
+        begin sym:=colon; getch end
+      else sym:=period
+    end;
+  '''':
+    begin
+      getch;
+      sym:=charcon;num:=ord(ch);
+      getch;
+      if ch='''' then getch
+                 else error(48)
+    end;
+  '+','-','*','/','(',')','=','[',']',';',',':
+    begin
+      sym:=ssym[ch];
+      getch
+    end;
+  else
+    begin
+      error(0); getch;
+      goto 1
+    end
+  end  { case }
+end;   { getsym }
 
-  procedure enterarray (tp:types ; l,h:integer);
-  begin
-    if l>h then error(14);
-    if ax=amax then
+procedure enterarray (tp:types; l,h:integer);
+begin  { enterarray }
+  if l>h then error(14);
+  if ax=amax then
+    begin
+      error(2);
+      writeln('too many arrays in program ');
+      close(sfile);
+      close(listfile);
+      exit
+    end
+    else begin
+      ax:=ax+1;
+      with atab[ax] do
       begin
-        error(2);
-        writeln('too many arrays in program ');
-        close(sfile);
-        close(listfile);
-        exit
+        inxtyp:=tp; low:=l; high:=h
       end
-      else begin
-        ax:=ax+1;
-        with atab[ax] do
-        begin
-          inxtyp:=tp; low:=l; high:=h
-        end
-      end
-  end;  { enterarray }
+    end
+end;   { enterarray }
 
-  procedure enterblock;
-  begin
-    if bx=bmax  then
+procedure enterblock;
+begin  { enterblock }
+  if bx=bmax  then
+    begin
+      error(3);
+      writeln('too many procedure in program ');
+      close(sfile);
+      close(listfile);
+      exit
+    end
+  else begin
+    bx:=bx+1; btab[bx].last:=0; btab[bx].lastpar:=0
+  end
+end;   { enterblock }
+
+procedure gen (x:opcod; y,z:integer);
+begin  { gen }
+  if cx>cxmax then
+    begin
+      error(49);
+      writeln('program too long');
+      close(sfile);
+      close(listfile);
+      exit
+    end;
+  with code[cx] do
+    begin
+      f:=x; l:=y; a:=z
+    end;
+  cx:=cx+1
+end;   { gen }
+
+procedure test (s1,s2:symset; n:integer);
+begin  { test }
+  if not (sym in s1) then
+    begin
+      error(n); s1:=s1+s2;
+      while not (sym in s1) do getsym
+    end
+end;   { test }
+
+procedure block (fsys:symset; level:integer);
+  type
+    constrec=record
+              tp:types;
+              i:integer
+            end;
+  var dx:integer;  { data allocation index }
+      tx0:integer; { initial table index }
+      cx0:integer; { initial code  index }
+      prt,prb:integer;
+
+  procedure enter (k:oobject);
+    var j,l:integer;
+  begin  { enter }
+    if tx=txmax
+    then  
       begin
-        error(3);
-        writeln('too many procedure in program ');
+        error(1);
+        writeln('program too long');
         close(sfile);
         close(listfile);
         exit
       end
     else begin
-      bx:=bx+1; btab[bx].last:=0; btab[bx].lastpar:=0
+      nametab[0].name:=id;
+      j:=btab[display[level]].last; l:=j;
+      while nametab[j].name<>id do j:=nametab[j].link;
+      if j<>0
+      then error(l)
+      else begin
+        tx:=tx+1;
+        with nametab[tx] do
+        begin
+          name:=id; link:=l;
+          kind:=k;   typ:=notyp;    ref:=0;
+          lev:=level;  normal:=false;
+          case kind of
+            variable,prosedure: adr:=0;
+            konstant:           val:=0;
+            typel:              size:=0
+          end  { initial value }
+        end;
+        btab[display[level]].last:=tx
+      end
     end
-  end;   { enterblock }
+  end;   { enter }
 
-  procedure gen(x:opcod; y,z:integer);
-  begin
-    if cx>cxmax then
-      begin
-        error(49);
-        writeln('program too long');
-        close(sfile);
-        close(listfile);
-        exit
-      end;
-    with code[cx] do
-      begin
-        f:=x; l:=y; a:=z
-      end;
-    cx:=cx+1
-  end;  { gen }
-
-  procedure test(s1,s2:symset;n:integer);
-  begin
-    if not (sym in s1) then
-      begin
-        error(n); s1:=s1+s2;
-        while not (sym in s1) do getsym
-      end
-  end;  { test }
-
-  procedure block( fsys:symset;level:integer);
-  type
-    constrec=record
-            tp:types;
-            i:integer
-           end;
-  var dx:integer;  { data allocation index }
-      tx0:integer; { initial table index }
-      cx0:integer; { initial code  index }
-      prt,prb:integer;
-  procedure enter( k:oobject);
-   var j,l:integer;
-   begin
-     if tx=txmax
-      then  begin
-              error(1);
-              writeln('program too long');
-              close(sfile);
-              close(listfile);
-              exit
-            end
-      else  begin
-        nametab[0].name:=id;
-        j:=btab[display[level]].last; l:=j;
-        while nametab[j].name<>id do j:=nametab[j].link;
-        if j<>0
-        then error(l)
-        else begin
-          tx:=tx+1;
-          with nametab[tx] do
-          begin
-            name:=id; link:=l;
-            kind:=k;   typ:=notyp;    ref:=0;
-            lev:=level;  normal:=false;
-            case kind of
-              variable,prosedure: adr:=0;
-              konstant:           val:=0;
-              typel:              size:=0
-            end  { initial value }
-          end;
-          btab[display[level]].last:=tx
-        end
-      end
-   end;   { enter }
-
-    function position(id:alfa):integer;
+  function position (id:alfa):integer;
     var i,j:integer;
-    begin
-      nametab[0].name:=id; j:=level;
-      repeat
-        i:=btab[display[j]].last;
-        while nametab[i].name<>id do
-          i:=nametab[i].link;
-        j:=j-1
-      until (j<0) or (i<>0);
-      if (i=0) then error(10);
-      position:=i
-    end;  { position }
+  begin  { position }
+    nametab[0].name:=id; j:=level;
+    repeat
+      i:=btab[display[j]].last;
+      while nametab[i].name<>id do
+        i:=nametab[i].link;
+      j:=j-1
+    until (j<0) or (i<>0);
+    if (i=0) then error(10);
+    position:=i
+  end;   { position }
 
-    procedure constant(fsys:symset; var c:constrec);
-      var x,sign:integer;
-      begin
-      c.tp:=notyp; c.i:=0;
-      test(constbegsys,fsys,50);
-      if sym in constbegsys
-      then begin
-        if   sym=charcon
-         then begin
-           c.tp:=chars; c.i:=num;
-           getsym
-         end else
-           begin
-             sign:=1;
-            if sym in [plus,minus]
-            then begin
+  procedure constant (fsys:symset; var c:constrec);
+    var x,sign:integer;
+  begin  { constant }
+    c.tp:=notyp; c.i:=0;
+    test(constbegsys,fsys,50);
+    if sym in constbegsys
+    then begin
+      if sym=charcon then
+        begin
+          c.tp:=chars; c.i:=num;
+          getsym
+        end else
+        begin
+          sign:=1;
+          if sym in [plus,minus] then
+            begin
               if sym=minus then sign:=-1;
               getsym
             end;
-            if sym=ident
-            then begin
+          if sym=ident then
+            begin
               x:=position(id);
               if x<>0
               then if nametab[x].kind<>konstant
                   then error(12)
                   else begin
-                          c.tp:=nametab[x].typ;
-                          c.i:=sign*nametab[x].val
+                    c.tp:=nametab[x].typ;
+                    c.i:=sign*nametab[x].val
                   end;
               getsym
-            end else if sym=intcon
-               then begin
-                      c.tp:=ints; c.i:=sign*num;
-                      getsym
-               end
-       end;
-       test(fsys,[],6)
-     end
-end;    { constant }
-
-procedure typ(fsys:symset;var tp:types; var rf,sz:integer);
-var  eltp:types;
-     elrf,x:integer;
-     elsz,offset,t0,t1:integer;
-
-procedure arraytyp(var aref,arsz:integer);
-var  eltp:types;
-     low,high:constrec;
-     elrf,elsz:integer;
-begin
-  constant([colon,rbrack,rparen,ofsym]+fsys,low);
-  if (low.tp<>ints)  and (low.tp<>chars)
-  then  error(50);
-  if sym=colon then getsym else error(38);
-  constant([rbrack,comma,rparen,ofsym]+fsys,high);
-  if high.tp<>low.tp
-  then begin
-    error(40); high.i:=low.i;
-  end;
-  enterarray(low.tp,low.i,high.i);
-  aref:=ax;
-  if sym=comma
-  then begin
-    getsym;
-    eltp:=arrays;
-    arraytyp(elrf,elsz)
-  end else begin
-    if sym=rbrack
-    then getsym
-    else begin
-      error(28);
-      if sym=rparen then getsym
-    end;
-    if sym=ofsym then getsym else error(17);
-    typ(fsys,eltp,elrf,elsz)
-  end;
-  with atab[aref] do
-  begin
-    arsz:=(high-low+1)*elsz; size:=arsz;
-    eltyp:=eltp; elref:=elrf; elsize:=elsz
-  end;
-end;   { arraytyp }
-begin  { typ }
-  tp:=notyp; rf:=0; sz:=0;
-  test(typebegsys,fsys,10);
-  if sym in typebegsys
-  then begin
-    if sym=ident
-    then begin
-       x:=position(id);
-       if x<>0
-       then with nametab[x] do
-              if kind<>typel
-              then error(19)
-              else begin
-                tp:=typ;rf:=ref;sz:=size;
-                if tp=notyp then error(18);
-              end;
-         getsym;
-    end else if sym=arraysym
-                then  begin
-                  getsym;
-                  if sym=lbrack
-                  then getsym
-                  else begin
-                    error(16);
-                    if sym=lparen
-                    then getsym
-                  end;
-                  tp:=arrays;
-                  arraytyp(rf,sz)
-                end ;
-         test(fsys,[],13)
+            end 
+          else if sym=intcon then
+                  begin
+                    c.tp:=ints; c.i:=sign*num;
+                    getsym
+                  end
+        end;
+      test(fsys,[],6)
     end
-  end;       {typ}
+  end;   { constant }
 
-    procedure paramenterlist;   {formal parameter list}
+  procedure typ (fsys:symset; var tp:types; var rf,sz:integer);
+    var eltp:types;
+        elrf,x:integer;
+        elsz,offset,t0,t1:integer;
+
+    procedure arraytyp (var aref,arsz:integer);
+      var eltp:types;
+          low,high:constrec;
+          elrf,elsz:integer;
+
+    begin  { arraytyp }
+      constant([colon,rbrack,rparen,ofsym]+fsys,low);
+      if (low.tp<>ints)  and (low.tp<>chars)
+      then  error(50);
+      if sym=colon then getsym else error(38);
+      constant([rbrack,comma,rparen,ofsym]+fsys,high);
+      if high.tp<>low.tp
+      then begin
+        error(40); high.i:=low.i;
+      end;
+      enterarray(low.tp,low.i,high.i);
+      aref:=ax;
+      if sym=comma
+      then begin
+        getsym;
+        eltp:=arrays;
+        arraytyp(elrf,elsz)
+      end else begin
+        if sym=rbrack
+        then getsym
+        else begin
+          error(28);
+          if sym=rparen then getsym
+        end;
+        if sym=ofsym then getsym else error(17);
+        typ(fsys,eltp,elrf,elsz)
+      end;
+      with atab[aref] do
+      begin
+        arsz:=(high-low+1)*elsz; size:=arsz;
+        eltyp:=eltp; elref:=elrf; elsize:=elsz
+      end;
+    end;   { arraytyp }
+
+  begin  { typ }
+    tp:=notyp; rf:=0; sz:=0;
+    test(typebegsys,fsys,10);
+    if sym in typebegsys
+    then begin
+      if sym=ident
+      then begin
+          x:=position(id);
+          if x<>0
+          then with nametab[x] do
+                if kind<>typel
+                then error(19)
+                else begin
+                  tp:=typ;rf:=ref;sz:=size;
+                  if tp=notyp then error(18);
+                end;
+          getsym;
+      end
+      else if sym=arraysym
+                  then  begin
+                    getsym;
+                    if sym=lbrack
+                    then getsym
+                    else begin
+                      error(16);
+                      if sym=lparen
+                      then getsym
+                    end;
+                    tp:=arrays;
+                    arraytyp(rf,sz)
+                  end ;
+        test(fsys,[],13)
+    end
+  end;   { typ }
+
+  procedure paramenterlist;   {formal parameter list}
     var
       tp:types;
       valpar:boolean;
       rf,sz,x,t0:integer;
+
+  begin  { parameterlist }
+    getsym;
+    tp:=notyp;rf:=0;sz:=0;
+    test([ident,varsym],fsys+[rparen],7);
+    while sym in [ident,varsym] do
     begin
-      getsym;
-      tp:=notyp;rf:=0;sz:=0;
-      test([ident,varsym],fsys+[rparen],7);
-      while sym in [ident,varsym] do
-      begin
-        if sym <> varsym
-          then valpar:=true
-          else begin
-            getsym;
-            valpar:=false
-          end;
-          t0:=tx;
+      if sym <> varsym
+        then valpar:=true
+        else begin
+          getsym;
+          valpar:=false
+        end;
+        t0:=tx;
+        if sym=ident
+        then begin
+          enter(variable);
+          getsym
+        end  else error(22);
+        while sym=comma do
+        begin
+          getsym;
           if sym=ident
           then begin
             enter(variable);
             getsym
           end  else error(22);
-          while sym=comma do
-          begin
-            getsym;
-            if sym=ident
-            then begin
-              enter(variable);
-              getsym
-            end  else error(22);
-          end;
-          if sym=colon
-          then begin
-            getsym;
-            if sym <> ident
-            then error(22)
-            else begin
-              x :=position(id); getsym;
-              if x<>0
-              then with nametab[x] do
-                if kind <> typel
-                then error(19)
-                else begin
-                  tp:= typ; rf:=ref;
-                  if valpar then sz:=size else sz:=1
-                end;
-            end;
-            test ([semicolon,rparen],[comma,ident]+fsys,14)
-          end else error(24);
-          while t0 < tx do
-          begin
-            t0 :=t0+1;
-            with nametab[t0] do
-            begin
-              typ :=tp;ref :=rf;
-              adr :=dx;lev :=level;
-              normal :=valpar;
-              dx :=dx+sz
-            end
-          end;
-          if sym <> rparen
-          then begin
-            if sym=semicolon
-            then getsym
-            else begin
-              error(23);
-            if sym=comma then getsym
-          end;
-          test([ident,varsym],[rparen]+fsys,13)
-        end
-      end {while};
-      if sym=rparen
-       then begin
-         getsym;
-         test([semicolon],fsys,13)
-       end else error(25)
-    end {parameterlist};
-
-
-    procedure constdeclaration;
-    var c:constrec;
-    begin
-      if sym=ident then
-        begin
-          enter(konstant);
+        end;
+        if sym=colon
+        then begin
           getsym;
-          if sym = eql
-            then getsym
-            else
-              begin
-                error(26);
-                if sym=becomes then getsym
+          if sym <> ident
+          then error(22)
+          else begin
+            x :=position(id); getsym;
+            if x<>0
+            then with nametab[x] do
+              if kind <> typel
+              then error(19)
+              else begin
+                tp:= typ; rf:=ref;
+                if valpar then sz:=size else sz:=1
               end;
-          constant([semicolon,comma,ident]+fsys,c);
-          nametab[tx].typ:=c.tp;
-          nametab[tx].ref:=0;
-          nametab[tx].val:=c.i;
-          if sym=semicolon then getsym else error(23)
-        end
-        else error(22);
-      test(fsys+[ident],[],13)
-    end;   { constdeclaration }
+          end;
+          test ([semicolon,rparen],[comma,ident]+fsys,14)
+        end else error(24);
+        while t0 < tx do
+        begin
+          t0 :=t0+1;
+          with nametab[t0] do
+          begin
+            typ :=tp;ref :=rf;
+            adr :=dx;lev :=level;
+            normal :=valpar;
+            dx :=dx+sz
+          end
+        end;
+        if sym <> rparen
+        then begin
+          if sym=semicolon
+          then getsym
+          else begin
+            error(23);
+          if sym=comma then getsym
+        end;
+        test([ident,varsym],[rparen]+fsys,13)
+      end
+    end {while};
+    if sym=rparen
+     then begin
+       getsym;
+       test([semicolon],fsys,13)
+     end else error(25)
+  end;   { parameterlist }
 
-    procedure typedeclaration;
+
+  procedure constdeclaration;
+    var c:constrec;
+  begin  { constdeclaration }
+    if sym=ident then
+      begin
+        enter(konstant);
+        getsym;
+        if sym = eql
+          then getsym
+          else
+            begin
+              error(26);
+              if sym=becomes then getsym
+            end;
+        constant([semicolon,comma,ident]+fsys,c);
+        nametab[tx].typ:=c.tp;
+        nametab[tx].ref:=0;
+        nametab[tx].val:=c.i;
+        if sym=semicolon then getsym else error(23)
+      end
+      else error(22);
+    test(fsys+[ident],[],13)
+  end;   { constdeclaration }
+
+  procedure typedeclaration;
     var
       tp:types;
       rf,sz,t1:integer;
-    begin
-      if sym=ident then
-        begin
-          enter(typel);
-          t1:=tx;
-          getsym;
-          if sym = eql then  getsym
-          else begin
-              error(26);
-              if sym=becomes then   getsym;
-          end;
-         typ ([semicolon,comma,ident]+fsys,tp,rf,sz);
-         nametab[tx].typ:=tp;
-         nametab[tx].ref:=rf;
-         nametab[tx].size:=sz;
-         if sym=semicolon then getsym else error(23)
-        end
-        else error(22);
-      test(fsys+[ident],[],13)
-    end;   { typedeclaration }
+
+  begin  { typedeclaration }
+    if sym=ident then
+      begin
+        enter(typel);
+        t1:=tx;
+        getsym;
+        if sym = eql then  getsym
+        else begin
+            error(26);
+            if sym=becomes then   getsym;
+        end;
+        typ ([semicolon,comma,ident]+fsys,tp,rf,sz);
+        nametab[tx].typ:=tp;
+        nametab[tx].ref:=rf;
+        nametab[tx].size:=sz;
+        if sym=semicolon then getsym else error(23)
+      end
+      else error(22);
+    test(fsys+[ident],[],13)
+  end;   { typedeclaration }
 
 
-    procedure vardeclaration;
+  procedure vardeclaration;
     var tp:types;
         t0,t1,rf,sz:integer;
-    begin
-      if sym=ident then
-        begin
-          t0:=tx;
-          enter(variable); getsym;
-          while sym = comma do
-          begin
-            getsym;
-            if sym =ident
-            then begin
-              enter(variable);getsym;
-            end else error(22);
-          end;
-          if sym = colon then getsym else error(24);
-          t1:=tx;
-          typ ([semicolon,comma,ident]+fsys,tp,rf,sz);
-          while t0 < t1 do
-          begin
-            t0:=t0+1;
-            with nametab[t0] do
-            begin
-              typ:=tp;  ref:=rf;
-              lev:=level; adr:=dx;
-              normal:=true;
-              dx:=dx+sz
-            end
-          end;
-          if sym=semicolon then getsym else error(23)
-        end
-        else error(22);
-      test(fsys+[ident],[],13)
-    end;  { vardeclaration }
 
-    procedure procdeclaration;
-    begin
-      getsym;
-      if sym <> ident
-      then  begin
+  begin  { vardeclaration }
+    if sym=ident then
+      begin
+        t0:=tx;
+        enter(variable); getsym;
+        while sym = comma do
+        begin
+          getsym;
+          if sym =ident
+          then begin
+            enter(variable);getsym;
+          end else error(22);
+        end;
+        if sym = colon then getsym else error(24);
+        t1:=tx;
+        typ ([semicolon,comma,ident]+fsys,tp,rf,sz);
+        while t0 < t1 do
+        begin
+          t0:=t0+1;
+          with nametab[t0] do
+          begin
+            typ:=tp;  ref:=rf;
+            lev:=level; adr:=dx;
+            normal:=true;
+            dx:=dx+sz
+          end
+        end;
+        if sym=semicolon then getsym else error(23)
+      end
+      else error(22);
+    test(fsys+[ident],[],13)
+  end;   { vardeclaration }
+
+  procedure procdeclaration;
+  begin  { procdeclaration }
+    getsym;
+    if sym <> ident then 
+      begin
         error(22); id:=' '
       end;
-      enter(prosedure);
-      nametab[tx].normal:=true;
-      getsym;
-      block([semicolon]+fsys,level+1);
-      if sym = semicolon then getsym else error(23);
-    end;    {procdeclaration}
+    enter(prosedure);
+    nametab[tx].normal:=true;
+    getsym;
+    block([semicolon]+fsys,level+1);
+    if sym = semicolon then getsym else error(23);
+  end;   { procdeclaration }
 
-    procedure listcode;
+  procedure listcode;
     var i:integer;
-    begin
-      for i:=cx0 to cx-1 do
-        with code[i] do
-          writeln(listfile,i:4,mnemonic[f]:7,l:3,a:5)
-    end;  { listcode }
+  begin  { listcode }
+    for i:=cx0 to cx-1 do
+      with code[i] do
+        writeln(listfile,i:4,mnemonic[f]:7,l:3,a:5)
+  end;   { listcode }
 
-    procedure statement(fsys:symset);
+  procedure statement(fsys:symset);
     var i,cx1,cx2,cx3:integer;
         x:item;
-      procedure arrayelement(fsys:symset;var x:item); forward;
-      procedure expression(fsys:symset;var x: item);
+    
+    procedure arrayelement(fsys:symset;var x:item); forward;
+    
+    procedure expression(fsys:symset;var x: item);
       var relop:symbol;
           y:item;
-        procedure simpleexpression(fsys:symset;var x:item);
-          var addop:symbol;
-              y:item;
-          procedure term(fsys:symset;var x: item);
+      procedure simpleexpression(fsys:symset;var x:item);
+        var addop:symbol;
+            y:item;
+        procedure term(fsys:symset;var x: item);
           var mulop:symbol;
               y:item;
-            procedure factor(fsys:symset;var x:item);
+          
+          procedure factor(fsys:symset;var x:item);
             var i:integer;
-            begin
+          begin  { factor }
             x.typ:=notyp;
             x.ref:=0;
             test(facbegsys,fsys,13);
@@ -823,8 +839,9 @@ begin  { typ }
               end ;{ case }
               test(fsys+[rbrack,rparen],facbegsys,23)
             end  { of if }
-          end;  { factor }
-        begin   { term }
+          end;   { factor }
+
+        begin  { term }
           factor(fsys+[times,divsym,modsym,andsym],x);
           while sym in [times,divsym,modsym,andsym] do
             begin
@@ -856,7 +873,8 @@ begin  { typ }
                           else error(43)
             end
           end
-        end;  { term}
+        end;   { term }
+
       begin  { simpleexpression }
         if sym in [plus,minus] then
           begin
@@ -890,30 +908,32 @@ begin  { typ }
                  end
             end
       end;   { simpleexpression }
-    begin  {expression}
-       simpleexpression([eql,neq,lss,gtr,leq,geq]+fsys,x);
-       while (sym in [eql,neq,lss,leq,gtr,geq]) do
-         begin
-           relop:=sym; getsym; simpleexpression(fsys,y);
-           if x.typ<> y.typ
-             then error(40);
-           case relop of
-             eql:gen(eq,0,0);
-             neq:gen(ne,0,0);
-             lss:gen(ls,0,0);
-             geq:gen(ge,0,0);
-             gtr:gen(gt,0,0);
-             leq:gen(le,0,0)
-           end;
-           x.typ:=bool
-         end
-    end;       { expression }
 
-      procedure arrayelement(fsys:symset;var x:item);
+    begin  { expression }
+      simpleexpression([eql,neq,lss,gtr,leq,geq]+fsys,x);
+      while (sym in [eql,neq,lss,leq,gtr,geq]) do
+        begin
+          relop:=sym; getsym; simpleexpression(fsys,y);
+          if x.typ<> y.typ
+            then error(40);
+          case relop of
+            eql:gen(eq,0,0);
+            neq:gen(ne,0,0);
+            lss:gen(ls,0,0);
+            geq:gen(ge,0,0);
+            gtr:gen(gt,0,0);
+            leq:gen(le,0,0)
+          end;
+          x.typ:=bool
+        end
+    end;   { expression }
+
+    procedure arrayelement(fsys:symset;var x:item);
       var cc:integer;
           addr,p:index;
           y:item;
-      begin
+
+    begin  { arrayelement }
       p:=x.ref;
       if sym=lbrack then
         begin
@@ -938,156 +958,158 @@ begin  { typ }
           if sym=rbrack then getsym else error(28);
         end else error(16);
       test(fsys,[],13);
-    end;         {arrayelement}
+    end;   { arrayelement }
 
-  procedure assignment;
-    var x,y:item;
-      begin
-        i:=position(id);
-        if i=0 then error(10)
+    procedure assignment;
+      var x,y:item;
+    begin  { assignment }
+      i:=position(id);
+      if i=0 then error(10)
+      else
+        if nametab[i].kind<>variable then
+          begin  { giving value to non-variation }
+            error(30);  i:=0
+          end;
+      getsym;
+      x.typ:=nametab[i].typ;
+      x.ref:=nametab[i].ref;
+      with nametab[i] do
+        if normal
+          then gen(loda,lev,adr)
+          else gen(lod,lev,adr);
+      if sym = lbrack
+          then arrayelement(fsys+[becomes],x);
+      if sym=becomes then getsym
+            else begin
+                   error(33);
+                   if sym=eql then getsym
+                 end;
+       expression(fsys,y);
+       if x.typ <> y.typ then error(40)
+       else
+         if x.typ = arrays
+           then if x.ref = y.ref
+                   then gen(cpyb,0,atab[x.ref].size)
+                   else error(40)
+           else gen(sto,0,0);
+    end;   { assignment }
+
+    procedure ifstatement;
+      var x:item;
+    begin  { ifstatement }
+      getsym; expression([thensym,dosym]+fsys,x);
+      if x.typ <> bool then error(34);
+      if sym=thensym then getsym else error(35);
+      cx1:=cx; gen(jpc,0,0);
+      statement(fsys+[elsesym]);
+      if sym = elsesym
+        then  begin
+          getsym;
+          cx2:=cx; gen(jmp,0,0);
+          code[cx1].a:=cx;
+          labtab[lx]:=cx;lx:=lx+1;
+          statement(fsys);
+          code[cx2].a:=cx;
+          labtab[lx]:=cx;lx:=lx+1;
+        end
         else
-          if nametab[i].kind<>variable then
-            begin  { giving value to non-variation }
-              error(30);  i:=0
-            end;
-        getsym;
-        x.typ:=nametab[i].typ;
-        x.ref:=nametab[i].ref;
-        with nametab[i] do
-          if normal
-            then gen(loda,lev,adr)
-            else gen(lod,lev,adr);
-        if sym = lbrack
-            then arrayelement(fsys+[becomes],x);
-        if sym=becomes then getsym
-              else begin
-                     error(33);
-                     if sym=eql then getsym
-                   end;
-         expression(fsys,y);
-         if x.typ <> y.typ then error(40)
-         else
-           if x.typ = arrays
-             then if x.ref = y.ref
-                     then gen(cpyb,0,atab[x.ref].size)
-                     else error(40)
-             else gen(sto,0,0);
-      end;       {assignment}
-
-     procedure ifstatement;
-       var x:item;
-       begin
-         getsym; expression([thensym,dosym]+fsys,x);
-         if x.typ <> bool then error(34);
-         if sym=thensym then getsym else error(35);
-         cx1:=cx; gen(jpc,0,0);
-         statement(fsys+[elsesym]);
-         if sym = elsesym
-           then  begin
-             getsym;
-             cx2:=cx; gen(jmp,0,0);
-             code[cx1].a:=cx;
-             labtab[lx]:=cx;lx:=lx+1;
-             statement(fsys);
-             code[cx2].a:=cx;
-             labtab[lx]:=cx;lx:=lx+1;
-           end
-           else
-             begin
-               code[cx1].a:=cx;
-               labtab[lx]:=cx;lx:=lx+1;
-             end
-       end;           {ifstatement}
+          begin
+            code[cx1].a:=cx;
+            labtab[lx]:=cx;lx:=lx+1;
+          end
+    end;   { ifstatement }
 
     procedure compound;
+    begin  { compound }
+      getsym; statement([semicolon,endsym]+fsys);
+      while sym in ([semicolon]+statbegsys) do
       begin
-        getsym; statement([semicolon,endsym]+fsys);
-        while sym in ([semicolon]+statbegsys) do
-        begin
-          if sym=semicolon then getsym else error(23);
-          statement([semicolon,endsym]+fsys)
-        end;
-        if sym=endsym then getsym else error(36)
-      end;         {compound}
+        if sym=semicolon then getsym else error(23);
+        statement([semicolon,endsym]+fsys)
+      end;
+      if sym=endsym then getsym else error(36)
+    end;   { compound }
 
     procedure whilestatement;
       var x:item;
-      begin
-        getsym;
-        labtab[lx]:=cx;lx:=lx+1;
-        cx1:=cx; expression([dosym]+fsys,x);
-        if x.typ <> bool then error(34);
-        cx2:=cx; gen(jpc,0,0);
-        if sym=dosym then getsym else error(37);
-        statement(fsys); gen(jmp,0,cx1); code[cx2].a:=cx;
-        labtab[lx]:=cx;lx:=lx+1
-      end;
+    begin
+      getsym;
+      labtab[lx]:=cx;lx:=lx+1;
+      cx1:=cx; expression([dosym]+fsys,x);
+      if x.typ <> bool then error(34);
+      cx2:=cx; gen(jpc,0,0);
+      if sym=dosym then getsym else error(37);
+      statement(fsys); gen(jmp,0,cx1); code[cx2].a:=cx;
+      labtab[lx]:=cx;lx:=lx+1
+    end;
 
     procedure call;
-    var      x:  item;
-             lastp,cp,i,j,k:integer;
-    procedure stanproc(i:integer);
-    var n:integer;
-    begin
-      if i =6  then
-        begin    { read }
-          getsym;
-          if sym=lparen then
-          begin
-            repeat
-              getsym;
-              if sym=ident then
-                begin
-                  n:=position(id); getsym;
-                  if n=0 then error(10)
-                    else
-                      if nametab[n].kind<>variable then
-                         begin error(30); n:=0 end
-                      else
-                        begin
-                          x.typ:=nametab[n].typ;
-                          x.ref:=nametab[n].ref;
-                          if nametab[n].normal
-                            then gen(loda,nametab[n].lev,nametab[n].adr)
-                            else gen(lod,nametab[n].lev,nametab[n].adr);
-                          if sym = lbrack
-                             then arrayelement(fsys+[comma],x);
-                          if x.typ = ints
-                            then gen(red,0,0)
-                            else if x.typ = chars
-                                   then gen(red,0,1)
-                                   else error(43)
-                        end
-                end
-                else error(22)
-              until sym<>comma;
-              if sym<>rparen then error(25)
-                               else  getsym
-            end
-            else error(32)
-          end
-          else
-            if i = 7 then
-              begin        { write }
+      var x:  item;
+          lastp,cp,i,j,k:integer;
+
+      procedure stanproc(i:integer);
+        var n:integer;
+      begin  { standproc }
+        if i =6  then
+          begin    { read }
+            getsym;
+            if sym=lparen then
+            begin
+              repeat
                 getsym;
-                if sym=lparen then
+                if sym=ident then
                   begin
-                    repeat
-                      getsym;
-                      expression([rparen,comma]+fsys,x);
-                      if x.typ = ints
-                        then gen(wrt,0,0)
-                        else if x.typ = chars
-                               then gen(wrt,0,1)
-                               else error(43)
-                    until sym<>comma;
-                    if sym<>rparen then error(25);
-                    getsym
+                    n:=position(id); getsym;
+                    if n=0 then error(10)
+                      else
+                        if nametab[n].kind<>variable then
+                          begin error(30); n:=0 end
+                        else
+                          begin
+                            x.typ:=nametab[n].typ;
+                            x.ref:=nametab[n].ref;
+                            if nametab[n].normal
+                              then gen(loda,nametab[n].lev,nametab[n].adr)
+                              else gen(lod,nametab[n].lev,nametab[n].adr);
+                            if sym = lbrack
+                              then arrayelement(fsys+[comma],x);
+                            if x.typ = ints
+                              then gen(red,0,0)
+                              else if x.typ = chars
+                                     then gen(red,0,1)
+                                     else error(43)
+                          end
                   end
-                else error(32)
-             end
-    end;    { standproc }
-    begin    { call }
+                  else error(22)
+                until sym<>comma;
+                if sym<>rparen then error(25)
+                                 else  getsym
+              end
+              else error(32)
+            end
+            else
+              if i = 7 then
+                begin        { write }
+                  getsym;
+                  if sym=lparen then
+                    begin
+                      repeat
+                        getsym;
+                        expression([rparen,comma]+fsys,x);
+                        if x.typ = ints
+                          then gen(wrt,0,0)
+                          else if x.typ = chars
+                                 then gen(wrt,0,1)
+                                 else error(43)
+                      until sym<>comma;
+                      if sym<>rparen then error(25);
+                      getsym
+                    end
+                  else error(32)
+               end
+      end;   { standproc }
+
+    begin  { call }
       getsym;
       if sym = ident  then
       begin
@@ -1102,128 +1124,130 @@ begin  { typ }
             cp :=i;
             if sym=lparen
             then begin {actual parameter list}
-            repeat
-              getsym;
-              if cp>=lastp
-              then error(29)
-              else begin
-                cp :=cp+1;
-                if nametab[cp].normal  then
-                begin {value parameter}
-                  expression(fsys+[comma,colon,rparen],x);
-                  if x.typ = nametab[cp].typ then
-                    begin
-                      if x.ref <> nametab[cp].ref
-                        then error(31)
-                        else if x.typ = arrays
-                               then gen(lodb,0,atab[x.ref].size)
+              repeat
+                getsym;
+                if cp>=lastp
+                then error(29)
+                else begin
+                  cp :=cp+1;
+                  if nametab[cp].normal  then
+                  begin {value parameter}
+                    expression(fsys+[comma,colon,rparen],x);
+                    if x.typ = nametab[cp].typ then
+                      begin
+                        if x.ref <> nametab[cp].ref
+                          then error(31)
+                          else if x.typ = arrays
+                                 then gen(lodb,0,atab[x.ref].size)
+                      end
+                    else error(31)
+                  end else begin {variable parameter}
+                    if sym <> ident
+                    then error(22)
+                    else begin
+                      k:=position(id);
+                      getsym;
+                      if k<>0
+                      then begin
+                        if nametab[k].kind<>variable then error (30);
+                        x.typ :=nametab[k].typ;
+                        x.ref :=nametab[k].ref;
+                        if nametab[k].normal
+                        then gen(loda,nametab[k].lev,nametab[k].adr)
+                        else gen(lod,nametab[k].lev,nametab[k].adr);
+                        if sym = lbrack
+                          then  arrayelement(fsys+[comma,rparen],x);
+                        if    (nametab[cp].typ<>x.typ)
+                          or (nametab[cp].ref<>x.ref)
+                           then error(31);
+                      end
                     end
-                  else error(31)
-                end else begin {variable parameter}
-                  if sym <> ident
-                  then error(22)
-                  else begin
-                    k:=position(id);
-                    getsym;
-                    if k<>0
-                    then begin
-                      if nametab[k].kind<>variable then error (30);
-                      x.typ :=nametab[k].typ;
-                      x.ref :=nametab[k].ref;
-                      if nametab[k].normal
-                      then gen(loda,nametab[k].lev,nametab[k].adr)
-                      else gen(lod,nametab[k].lev,nametab[k].adr);
-                      if sym = lbrack
-                        then  arrayelement(fsys+[comma,rparen],x);
-                      if    (nametab[cp].typ<>x.typ)
-                        or (nametab[cp].ref<>x.ref)
-                         then error(31);
-                    end
-                  end
-                end {variable parameter}
-              end;
-              test([comma,rparen],fsys,13)
-            until sym <> comma;
-            if sym=rparen then getsym  else error(25)
-          end;
-          if cp < lastp then error(39);{too few actual parameters}
-          gen(cal,nametab[i].lev,nametab[i].adr);
-          if nametab[i].lev<level then gen(udis,nametab[i].lev,level)
-        end
-      end else error(51)
-    end else error(22);
-    test(fsys+[ident],[],13)
-  end {call};
-    begin  { statement }
-      test(statbegsys+[ident],fsys,13);
-      if sym=ident then  assignment
-      else if sym=callsym then call
-      else   if sym=ifsym then  ifstatement
-      else   if sym=beginsym then compound
-      else    if sym=whilesym then whilestatement;
-      test(fsys+[elsesym],[],13)
-    end;  { statement }
-  begin   { block }
-    prt:=tx;
-    dx:=3; tx0:=tx; nametab[tx].adr:=cx;
-    if level > levmax then error(4);
-    enterblock ;
-    prb:=bx;  display[level]:=bx;
-    nametab[prt].typ:=notyp;  nametab[prt].ref:=prb;
+                  end {variable parameter}
+                end;
+                test([comma,rparen],fsys,13)
+              until sym <> comma;
+              if sym=rparen then getsym  else error(25)
+            end;
+            if cp < lastp then error(39);{too few actual parameters}
+            gen(cal,nametab[i].lev,nametab[i].adr);
+            if nametab[i].lev<level then gen(udis,nametab[i].lev,level)
+          end
+        end else error(51)
+      end else error(22);
+      test(fsys+[ident],[],13)
+    end;   { call }
 
-    if(sym=lparen) and (level>1)
-      then
-        begin
-          paramenterlist;
-          if sym=semicolon then getsym
-                           else error(23)
-        end
-      else  if level>1 then
-              if sym=semicolon then getsym
-                            else error(23);
-    btab[prb].lastpar:=tx;
-    btab[prb].psize:=dx;
+  begin  { statement }
+    test(statbegsys+[ident],fsys,13);
+    if sym=ident then  assignment
+    else if sym=callsym then call
+    else   if sym=ifsym then  ifstatement
+    else   if sym=beginsym then compound
+    else    if sym=whilesym then whilestatement;
+    test(fsys+[elsesym],[],13)
+  end;   { statement }
 
-    gen(jmp,0,0);  { jump from declaration part to statement part }
-    repeat
-      if sym=constsym then
-        begin
-          getsym;
-          repeat
-            constdeclaration;
-          until sym<>ident
-        end;
-      if sym=typesym then
-        begin
-          getsym;
-          repeat
-            typedeclaration;
-          until sym<>ident
-        end;
-      if sym=varsym then
-        begin
-          getsym;
-          repeat
-            vardeclaration;
-          until sym<>ident;
-        end;
-      while sym=procsym do   procdeclaration;
-      test(statbegsys+[ident],declbegsys,13)
-    until not (sym in declbegsys);
-    code[nametab[tx0].adr].a:=cx;  {back enter statement code's start adr. }
-    labtab[lx]:=cx;lx:=lx+1;
-    with nametab[tx0] do
+begin  { block }
+  prt:=tx;
+  dx:=3; tx0:=tx; nametab[tx].adr:=cx;
+  if level > levmax then error(4);
+  enterblock ;
+  prb:=bx;  display[level]:=bx;
+  nametab[prt].typ:=notyp;  nametab[prt].ref:=prb;
+
+  if(sym=lparen) and (level>1)
+    then
       begin
-        adr:=cx;  {code's start address }
+        paramenterlist;
+        if sym=semicolon then getsym
+                         else error(23)
+      end
+    else  if level>1 then
+            if sym=semicolon then getsym
+                          else error(23);
+  btab[prb].lastpar:=tx;
+  btab[prb].psize:=dx;
+
+  gen(jmp,0,0);  { jump from declaration part to statement part }
+  repeat
+    if sym=constsym then
+      begin
+        getsym;
+        repeat
+          constdeclaration;
+        until sym<>ident
       end;
-    cx0:=cx;
-    gen(entp,level,dx);  { block entry }
-    statement([semicolon,endsym]+fsys);
-    if level>1 then gen(retp,0,0)  {return}
-               else gen(endp,0,0);  { end prograam }
-    test(fsys,[],13);
-    listcode;
-  end;   { block }
+    if sym=typesym then
+      begin
+        getsym;
+        repeat
+          typedeclaration;
+        until sym<>ident
+      end;
+    if sym=varsym then
+      begin
+        getsym;
+        repeat
+          vardeclaration;
+        until sym<>ident;
+      end;
+    while sym=procsym do   procdeclaration;
+    test(statbegsys+[ident],declbegsys,13)
+  until not (sym in declbegsys);
+  code[nametab[tx0].adr].a:=cx;  {back enter statement code's start adr. }
+  labtab[lx]:=cx;lx:=lx+1;
+  with nametab[tx0] do
+    begin
+      adr:=cx;  {code's start address }
+    end;
+  cx0:=cx;
+  gen(entp,level,dx);  { block entry }
+  statement([semicolon,endsym]+fsys);
+  if level>1 then gen(retp,0,0)  {return}
+             else gen(endp,0,0);  { end prograam }
+  test(fsys,[],13);
+  listcode;
+end;   { block }
 
 {************************************************************************}
 begin  { main }
@@ -1273,4 +1297,4 @@ begin  { main }
   writeln;
   close(sfile);
   close(listfile)
- end.  { of whole program  }
+end.   { of whole program  }
