@@ -27,7 +27,7 @@ type symbol=
 
      opcod = (lit,lod,ilod,loda,lodt,sto,lodb,cpyb,jmp,jpc,red,wrt,
             cal,retp,endp,udis,opac,entp,ands,ors,nots,imod,mus,add,
-            sub,mult,idiv,eq,ne,ls,le,gt,ge);  { opration code }
+            sub,mult,idiv,eq,ne,ls,le,gt,ge,ctop);  { opration code }
      instruction = packed record
                      f:opcod;
                      l:0..levmax;
@@ -161,10 +161,10 @@ begin  {init}
   mnemonic[ge]:='GE ';      mnemonic[opac]:='OPAC ';
   mnemonic[entp]:='ENTP';   mnemonic[imod]:='IMOD ';
   mnemonic[ands]:='ANDS';   mnemonic[ors]:='ORS ';
-  mnemonic[nots]:='NOTS';
+  mnemonic[nots]:='NOTS';   mnemonic[ctop]:='CTOP';
 
   declbegsys:=[constsym,varsym,typesym,procsym];
-  statbegsys:=[beginsym,callsym,ifsym,whilesym,repeatsym];
+  statbegsys:=[beginsym,callsym,ifsym,whilesym,repeatsym,forsym];
   facbegsys :=[ident,intcon,lparen,notsym,charcon];
   typebegsys:=[ident,arraysym];
   constbegsys:=[plus,minus,intcon,charcon,ident];
@@ -997,9 +997,95 @@ procedure block (fsys:symset; level:integer);
          if x.typ = arrays
            then if x.ref = y.ref
                    then gen(cpyb,0,atab[x.ref].size)
-                   else error(40)
-           else gen(sto,0,0);
+                else error(40)
+         else gen(sto,0,0);
     end;   { assignment }
+
+    procedure copycode(s,e:integer);
+      var ptr:integer;
+    begin
+        for ptr:= s to e do
+            with code[ptr] do
+                gen(f,l,a)
+    end;
+
+    procedure forstatement;
+      var x,y:item;
+          adval,cx4: integer;
+          judgecod: opcod;
+    begin  { forstatement }
+      cx1 := cx; { calculate address start }
+      getsym;
+      i:=position(id);
+      if i=0 then error(10)
+      else if nametab[i].kind <> variable then 
+             begin
+               error(30); i := 0
+             end;
+      getsym;
+      x.typ:=nametab[i].typ; x.ref:=nametab[i].ref;
+      with nametab[i] do
+        if normal then gen(loda, lev, adr)
+        else gen(lod, lev, adr);
+      if sym = lbrack then
+        arrayelement(fsys+[becomes],x);
+
+      if x.typ <> ints then error(78); { var should be ints }
+      
+      if sym = becomes then getsym
+      else begin
+        error(33);
+        if sym=eql then getsym
+      end;
+
+
+      cx2 := cx-1; { calculate address end }
+
+      expression(fsys + [tosym, downtosym], y); { var := expression }
+      if x.typ <> y.typ then error(40)
+      else gen(sto, 0, 0);
+      
+
+      copycode(cx1, cx2);
+      gen(lodt, 0, 0);
+      
+      cx3 := cx; { for code start here  }
+
+      adval := 1;
+      judgecod := le;
+      if sym <> tosym then
+        if sym <> downtosym then
+          error(79)
+        else begin
+          adval := -1;
+          judgecod := ge
+        end;
+      
+      getsym;
+      expression(fsys + [dosym], y);
+      if x.typ <> y.typ then error(40);
+      
+      gen(judgecod, 0, 0);
+      cx4 := cx;
+      gen(jpc, 0, 0);
+
+      if sym <> dosym then error (79);
+      
+      getsym;
+      statement(fsys);
+
+      copycode(cx1, cx2);
+      gen(ctop, 0, 0);
+      gen(ctop, 0, 0);
+      gen(lodt, 0, 0);
+      gen(lit, 0, adval);
+      gen(add, 0, 0);
+      gen(sto, 0, 0);
+      gen(lodt, 0, 0);
+      
+      gen(jmp, 0, cx3);
+      code[cx4].a := cx;
+    end;   { forstatement } 
 
     procedure ifstatement;
       var x:item;
@@ -1053,7 +1139,7 @@ procedure block (fsys:symset; level:integer);
     { add repeat until }
     procedure repeatstatement;
       var x:item;
-    begin
+    begin  { repeatstatement }
       getsym;
       labtab[lx]:=cx;lx:=lx+1;
       cx1:=cx;
@@ -1065,7 +1151,7 @@ procedure block (fsys:symset; level:integer);
       if x.typ <> bool then error(34);
       gen(jpc,0,cx1);
       labtab[lx]:=cx;lx:=lx+1;
-    end;
+    end;  { repeatstatement }
       
 
     procedure call;
@@ -1209,7 +1295,8 @@ procedure block (fsys:symset; level:integer);
     else   if sym=ifsym then  ifstatement
     else   if sym=beginsym then compound
     else    if sym=whilesym then whilestatement
-    else    if sym=repeatsym then repeatstatement;
+    else    if sym=repeatsym then repeatstatement
+    else    if sym=forsym then forstatement;
     test(fsys+[elsesym],[],13)
   end;   { statement }
 

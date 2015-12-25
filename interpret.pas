@@ -7,7 +7,7 @@ program interpret(input,output,fcode);
      types=(notyp,ints,chars,arrays);
      opcod = (lit,lod,ilod,loda,lodt,sto,lodb,cpyb,jmp,jpc,red,wrt,
             cal,retp,endp,udis,opac,entp,ands,ors,nots,imod,mus,add,
-            sub,mult,idiv,eq,ne,ls,le,gt,ge);  { opration code }
+            sub,mult,idiv,eq,ne,ls,le,gt,ge,ctop);  { opration code }
      instruction = packed record
                      f:opcod;
                      l:0..levmax;
@@ -134,6 +134,8 @@ program interpret(input,output,fcode);
           ge  :begin top:=top-1; s[top]:=ord(s[top]>=s[top+1]) end;
           gt  :begin top:=top-1; s[top]:=ord(s[top]>s[top+1]) end;
           le  :begin top:=top-1; s[top]:=ord(s[top]<=s[top+1]) end;
+
+          ctop:begin top:=top+1; s[top]:=s[top-1] end; { copy top }
         end  { case,with }
     until stop=true;
     writeln(' END PL/0 ');
