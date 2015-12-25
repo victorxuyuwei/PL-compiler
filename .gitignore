@@ -1,5 +1,5 @@
 /*
 !.gitignore
-!*.pas
-!*.interpret.pas
+!dev.pas
+!interpret.pas
 

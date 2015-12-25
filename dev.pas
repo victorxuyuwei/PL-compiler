@@ -164,7 +164,7 @@ begin  {init}
   mnemonic[nots]:='NOTS';   mnemonic[ctop]:='CTOP';
 
   declbegsys:=[constsym,varsym,typesym,procsym];
-  statbegsys:=[beginsym,callsym,ifsym,whilesym,repeatsym,forsym];
+  statbegsys:=[beginsym,callsym,ifsym,whilesym,repeatsym,forsym,casesym];
   facbegsys :=[ident,intcon,lparen,notsym,charcon];
   typebegsys:=[ident,arraysym];
   constbegsys:=[plus,minus,intcon,charcon,ident];
@@ -1008,6 +1008,17 @@ procedure block (fsys:symset; level:integer);
             with code[ptr] do
                 gen(f,l,a)
     end;
+    
+    procedure jmpbacktrace(head, target:integer);
+      var pre:integer;
+    begin
+      while head <> 0 do
+        begin
+          pre := code[head].a;
+          code[head].a := target;
+          head := pre
+        end
+    end;
 
     procedure forstatement;
       var x,y:item;
@@ -1087,6 +1098,41 @@ procedure block (fsys:symset; level:integer);
       code[cx4].a := cx;
     end;   { forstatement } 
 
+    procedure casestatement;
+      var x, y: item;
+          la: integer;
+    begin  { casestatement }
+      getsym; expression([ofsym] + fsys, x);
+      if sym <> ofsym then error(81);
+      getsym;
+
+      while sym in facbegsys do
+        begin
+          gen(ctop, 0, 0);
+          expression([colon], y);
+          if sym <> colon then error(83);
+          getsym;
+
+          if x.typ <> y.typ then error(40);
+          gen(eq, 0, 0);
+          la := cx;
+          gen(jpc, 0, 0);
+          statement([semicolon]);
+          code[la].a := cx;
+          if sym <> semicolon then error(82)
+          else getsym;
+        end;
+        if sym = elsesym then
+          begin
+            getsym;
+            statement([endsym, semicolon])
+          end;
+        if sym = semicolon then getsym;
+        if sym <> endsym then error(83);
+        getsym;
+        gen(jpc,0,cx+1);
+    end;   { casestatement }
+
     procedure ifstatement;
       var x:item;
     begin  { ifstatement }
@@ -1143,7 +1189,7 @@ procedure block (fsys:symset; level:integer);
       getsym;
       labtab[lx]:=cx;lx:=lx+1;
       cx1:=cx;
-      statement(fsys + [untilsym]);
+      statement([untilsym]);
       
       if sym=untilsym then getsym else error(77);
 
@@ -1296,7 +1342,8 @@ procedure block (fsys:symset; level:integer);
     else   if sym=beginsym then compound
     else    if sym=whilesym then whilestatement
     else    if sym=repeatsym then repeatstatement
-    else    if sym=forsym then forstatement;
+    else    if sym=forsym then forstatement
+    else    if sym=casesym then casestatement;
     test(fsys+[elsesym],[],13)
   end;   { statement }
 
