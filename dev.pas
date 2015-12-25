@@ -237,7 +237,14 @@ procedure getsym;
       writeln(listfile); readln(sfile);
       ll:=ll+1; line[ll]:=' '  {process end-line}
     end;
-    cc:=cc+1; ch:=line[cc]
+    cc:=cc+1; ch:=line[cc];
+
+    if ch = '{' then
+      begin
+        while ch <> '}' do getch;
+        getch;
+      end;
+
   end;   { getch }
 
 begin  { getsym }
@@ -1100,12 +1107,13 @@ procedure block (fsys:symset; level:integer);
 
     procedure casestatement;
       var x, y: item;
-          la: integer;
+          la, head: integer;
     begin  { casestatement }
       getsym; expression([ofsym] + fsys, x);
       if sym <> ofsym then error(81);
       getsym;
 
+      head := 0;
       while sym in facbegsys do
         begin
           gen(ctop, 0, 0);
@@ -1118,6 +1126,10 @@ procedure block (fsys:symset; level:integer);
           la := cx;
           gen(jpc, 0, 0);
           statement([semicolon]);
+          
+          gen(jmp,0,head);
+          head := cx - 1;
+          
           code[la].a := cx;
           if sym <> semicolon then error(82)
           else getsym;
@@ -1130,6 +1142,7 @@ procedure block (fsys:symset; level:integer);
         if sym = semicolon then getsym;
         if sym <> endsym then error(83);
         getsym;
+        jmpbacktrace(head, cx);
         gen(jpc,0,cx+1);
     end;   { casestatement }
 
