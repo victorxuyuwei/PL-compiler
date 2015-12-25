@@ -1,7 +1,7 @@
 program plcopiler;
 uses dos;
 
-const norw=20;       { no. of reserved words }
+const norw=25;       { no. of reserved words }
       txmax=100;     { length of identifier table }
       bmax=20;       { length of block inormation table }
       arrmax=30;     { length of array information table }
@@ -17,7 +17,8 @@ type symbol=
       andsym,orsym,notsym,lbrack,rbrack,lparen,rparen,comma,
       semicolon,period,becomes,colon,beginsym,endsym,ifsym,thensym,
       elsesym,whilesym,repeatsym,dosym,callsym,constsym,typesym,
-      varsym,procsym);
+      varsym,procsym,
+      forsym, tosym, downtosym, casesym, untilsym); { add five new symple }
      alfa = string[al];
      index=-32767..+32767;
      oobject = (konstant,typel,variable,prosedure);
@@ -109,25 +110,31 @@ procedure initial;
 begin  {init}
   word[ 1]:='and       '; word[ 2]:='array     ';
   word[ 3]:='begin     '; word[ 4]:='call      ';
-  word[ 5]:='const     '; word[ 6]:='do        ';
-  word[ 7]:='else      '; word[ 8]:='end       ';
-  word[ 9]:='if        '; word[10]:='mod       ';
-  word[11]:='not       '; word[12]:='of        ';
-  word[13]:='or        '; word[14]:='procedure ';
-  word[15]:='program   '; word[16]:='repeat    ';
-  word[17]:='then      '; word[18]:='type      ';
-  word[19]:='var       '; word[20]:='while     ';
+  word[ 5]:='case      '; word[ 6]:='const     ';
+  word[ 7]:='do        '; word[ 8]:='downto    ';
+  word[ 9]:='else      '; word[10]:='end       ';
+  word[11]:='for       '; word[12]:='if        ';
+  word[13]:='mod       '; word[14]:='not       ';
+  word[15]:='of        '; word[16]:='or        ';
+  word[17]:='procedure '; word[18]:='program   ';
+  word[19]:='repeat    '; word[20]:='then      '; 
+  word[21]:='to        '; word[22]:='type      ';
+  word[23]:='until     '; word[24]:='var       ';
+  word[25]:='while     ';
 
   wsym[ 1]:=andsym;       wsym[ 2]:=arraysym;
   wsym[ 3]:=beginsym;     wsym[ 4]:=callsym;
-  wsym[ 5]:=constsym;     wsym[ 6]:=dosym;
-  wsym[ 7]:=elsesym;      wsym[ 8]:=endsym;
-  wsym[ 9]:=ifsym;        wsym[10]:=modsym;
-  wsym[11]:=notsym;       wsym[12]:=ofsym;
-  wsym[13]:=orsym;        wsym[14]:=procsym;
-  wsym[15]:=programsym;   wsym[16]:=repeatsym;
-  wsym[17]:=thensym;      wsym[18]:=typesym;
-  wsym[19]:=varsym;       wsym[20]:=whilesym;
+  wsym[ 5]:=casesym;      wsym[ 6]:=constsym;
+  wsym[ 7]:=dosym;        wsym[ 8]:=downtosym;
+  wsym[ 9]:=elsesym;      wsym[10]:=endsym;
+  wsym[11]:=forsym;       wsym[12]:=ifsym;
+  wsym[13]:=modsym;       wsym[14]:=notsym;
+  wsym[15]:=ofsym;        wsym[16]:=orsym;
+  wsym[17]:=procsym;      wsym[18]:=programsym;
+  wsym[19]:=repeatsym;    wsym[20]:=thensym;
+  wsym[21]:=tosym;        wsym[22]:=typesym;
+  wsym[23]:=untilsym;     wsym[24]:=varsym;
+  wsym[25]:=whilesym;
 
   ssym['+']:=plus;        ssym['-']:=minus;
   ssym['*']:=times;       ssym['/']:=divsym;
@@ -157,7 +164,7 @@ begin  {init}
   mnemonic[nots]:='NOTS';
 
   declbegsys:=[constsym,varsym,typesym,procsym];
-  statbegsys:=[beginsym,callsym,ifsym,whilesym];
+  statbegsys:=[beginsym,callsym,ifsym,whilesym,repeatsym];
   facbegsys :=[ident,intcon,lparen,notsym,charcon];
   typebegsys:=[ident,arraysym];
   constbegsys:=[plus,minus,intcon,charcon,ident];
@@ -1043,6 +1050,24 @@ procedure block (fsys:symset; level:integer);
       labtab[lx]:=cx;lx:=lx+1
     end;
 
+    { add repeat until }
+    procedure repeatstatement;
+      var x:item;
+    begin
+      getsym;
+      labtab[lx]:=cx;lx:=lx+1;
+      cx1:=cx;
+      statement(fsys + [untilsym]);
+      
+      if sym=untilsym then getsym else error(77);
+
+      expression(fsys, x);
+      if x.typ <> bool then error(34);
+      gen(jpc,0,cx1);
+      labtab[lx]:=cx;lx:=lx+1;
+    end;
+      
+
     procedure call;
       var x:  item;
           lastp,cp,i,j,k:integer;
@@ -1183,7 +1208,8 @@ procedure block (fsys:symset; level:integer);
     else if sym=callsym then call
     else   if sym=ifsym then  ifstatement
     else   if sym=beginsym then compound
-    else    if sym=whilesym then whilestatement;
+    else    if sym=whilesym then whilestatement
+    else    if sym=repeatsym then repeatstatement;
     test(fsys+[elsesym],[],13)
   end;   { statement }
 
