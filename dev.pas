@@ -1,7 +1,7 @@
 program plcopiler;
 uses dos;
 
-const norw=25;       { no. of reserved words }
+const norw=27;       { no. of reserved words }
       txmax=100;     { length of identifier table }
       bmax=20;       { length of block inormation table }
       arrmax=30;     { length of array information table }
@@ -10,7 +10,7 @@ const norw=25;       { no. of reserved words }
       amax=2047;     { maxinum address }
       levmax=7;      { maxinum depth of block nesting }
       cxmax=1000;    { size of code array }
-
+      rxmax=100;     { size of rep stack }
 type symbol=
      (nul,ident,intcon,charcon,plus,minus,times,divsym,
       eql,neq,lss,leq,gtr,geq, ofsym,arraysym,programsym,modsym,
@@ -18,7 +18,8 @@ type symbol=
       semicolon,period,becomes,colon,beginsym,endsym,ifsym,thensym,
       elsesym,whilesym,repeatsym,dosym,callsym,constsym,typesym,
       varsym,procsym,
-      forsym, tosym, downtosym, casesym, untilsym); { add five new symple }
+      forsym, tosym, downtosym, casesym, untilsym,
+      breaksym, continuesym); { add seven new symple }
      alfa = string[al];
      index=-32767..+32767;
      oobject = (konstant,typel,variable,prosedure);
@@ -94,6 +95,13 @@ var ch:char;           { last character read }
     labtab:array[0..100] of integer;
     lx:integer;
 
+
+    brkt: array[0..100] of integer;
+    rx:integer;
+    
+    cont: array[0..100] of integer;
+    nx:integer;
+
     sfile:text;         { source program file }
     sfilename:string; { source program file name }
     fcode:file of instruction;
@@ -109,32 +117,34 @@ var ch:char;           { last character read }
 procedure initial;
 begin  {init}
   word[ 1]:='and       '; word[ 2]:='array     ';
-  word[ 3]:='begin     '; word[ 4]:='call      ';
-  word[ 5]:='case      '; word[ 6]:='const     ';
-  word[ 7]:='do        '; word[ 8]:='downto    ';
-  word[ 9]:='else      '; word[10]:='end       ';
-  word[11]:='for       '; word[12]:='if        ';
-  word[13]:='mod       '; word[14]:='not       ';
-  word[15]:='of        '; word[16]:='or        ';
-  word[17]:='procedure '; word[18]:='program   ';
-  word[19]:='repeat    '; word[20]:='then      '; 
-  word[21]:='to        '; word[22]:='type      ';
-  word[23]:='until     '; word[24]:='var       ';
-  word[25]:='while     ';
+  word[ 3]:='begin     '; word[ 4]:='break     ';
+  word[ 5]:='call      '; word[ 6]:='case      ';
+  word[ 7]:='const     '; word[ 8]:='continue  ';
+  word[ 9]:='do        '; word[10]:='downto    ';
+  word[11]:='else      '; word[12]:='end       ';
+  word[13]:='for       '; word[14]:='if        ';
+  word[15]:='mod       '; word[16]:='not       ';
+  word[17]:='of        '; word[18]:='or        ';
+  word[19]:='procedure '; word[20]:='program   ';
+  word[21]:='repeat    '; word[22]:='then      '; 
+  word[23]:='to        '; word[24]:='type      ';
+  word[25]:='until     '; word[26]:='var       ';
+  word[27]:='while     ';
 
   wsym[ 1]:=andsym;       wsym[ 2]:=arraysym;
-  wsym[ 3]:=beginsym;     wsym[ 4]:=callsym;
-  wsym[ 5]:=casesym;      wsym[ 6]:=constsym;
-  wsym[ 7]:=dosym;        wsym[ 8]:=downtosym;
-  wsym[ 9]:=elsesym;      wsym[10]:=endsym;
-  wsym[11]:=forsym;       wsym[12]:=ifsym;
-  wsym[13]:=modsym;       wsym[14]:=notsym;
-  wsym[15]:=ofsym;        wsym[16]:=orsym;
-  wsym[17]:=procsym;      wsym[18]:=programsym;
-  wsym[19]:=repeatsym;    wsym[20]:=thensym;
-  wsym[21]:=tosym;        wsym[22]:=typesym;
-  wsym[23]:=untilsym;     wsym[24]:=varsym;
-  wsym[25]:=whilesym;
+  wsym[ 3]:=beginsym;     wsym[ 4]:=breaksym;
+  wsym[ 5]:=callsym;      wsym[ 6]:=casesym;
+  wsym[ 7]:=constsym;     wsym[ 8]:=continuesym;
+  wsym[ 9]:=dosym;        wsym[10]:=downtosym;
+  wsym[11]:=elsesym;      wsym[12]:=endsym;
+  wsym[13]:=forsym;       wsym[14]:=ifsym;
+  wsym[15]:=modsym;       wsym[16]:=notsym;
+  wsym[17]:=ofsym;        wsym[18]:=orsym;
+  wsym[19]:=procsym;      wsym[20]:=programsym;
+  wsym[21]:=repeatsym;    wsym[22]:=thensym;
+  wsym[23]:=tosym;        wsym[24]:=typesym;
+  wsym[25]:=untilsym;     wsym[26]:=varsym;
+  wsym[27]:=whilesym;
 
   ssym['+']:=plus;        ssym['-']:=minus;
   ssym['*']:=times;       ssym['/']:=divsym;
@@ -164,7 +174,8 @@ begin  {init}
   mnemonic[nots]:='NOTS';   mnemonic[ctop]:='CTOP';
 
   declbegsys:=[constsym,varsym,typesym,procsym];
-  statbegsys:=[beginsym,callsym,ifsym,whilesym,repeatsym,forsym,casesym];
+  statbegsys:=[beginsym,callsym,ifsym,whilesym,repeatsym,forsym,casesym,
+               breaksym,continuesym];
   facbegsys :=[ident,intcon,lparen,notsym,charcon];
   typebegsys:=[ident,arraysym];
   constbegsys:=[plus,minus,intcon,charcon,ident];
@@ -387,6 +398,45 @@ begin  { gen }
   cx:=cx+1
 end;   { gen }
 
+
+procedure jmpbacktrace(head, target:integer);
+  var pre:integer;
+begin
+  while head <> 0 do
+    begin
+      pre := code[head].a;
+      code[head].a := target;
+      head := pre
+    end
+end;
+
+
+procedure enterrep;
+begin
+  if rx = rxmax then
+    begin
+      error(88);
+      writeln('too many repetition');
+      close(sfile);
+      close(listfile);
+      exit
+    end
+  else begin
+    rx := rx + 1; brkt[rx] := 0;
+    cont[rx] := 0;
+  end
+end;
+
+procedure outrep(bpoint, cpoint:integer);
+begin
+  if rx > 0 then
+    begin
+      jmpbacktrace(brkt[rx], bpoint);
+      jmpbacktrace(cont[rx], cpoint);
+      rx := rx - 1;
+    end
+end;
+
 procedure test (s1,s2:symset; n:integer);
 begin  { test }
   if not (sym in s1) then
@@ -406,7 +456,7 @@ procedure block (fsys:symset; level:integer);
       tx0:integer; { initial table index }
       cx0:integer; { initial code  index }
       prt,prb:integer;
-
+      
   procedure enter (k:oobject);
     var j,l:integer;
   begin  { enter }
@@ -1016,24 +1066,15 @@ procedure block (fsys:symset; level:integer);
                 gen(f,l,a)
     end;
     
-    procedure jmpbacktrace(head, target:integer);
-      var pre:integer;
-    begin
-      while head <> 0 do
-        begin
-          pre := code[head].a;
-          code[head].a := target;
-          head := pre
-        end
-    end;
-
     procedure forstatement;
       var x,y:item;
           adval,cx4: integer;
           judgecod: opcod;
+          ctp: integer;
     begin  { forstatement }
       cx1 := cx; { calculate address start }
       getsym;
+      enterrep;
       i:=position(id);
       if i=0 then error(10)
       else if nametab[i].kind <> variable then 
@@ -1092,6 +1133,7 @@ procedure block (fsys:symset; level:integer);
       getsym;
       statement(fsys);
 
+      ctp := cx;
       copycode(cx1, cx2);
       gen(ctop, 0, 0);
       gen(ctop, 0, 0);
@@ -1103,6 +1145,8 @@ procedure block (fsys:symset; level:integer);
       
       gen(jmp, 0, cx3);
       code[cx4].a := cx;
+
+      outrep(cx, ctp);
     end;   { forstatement } 
 
     procedure casestatement;
@@ -1186,13 +1230,15 @@ procedure block (fsys:symset; level:integer);
       var x:item;
     begin
       getsym;
+      enterrep;
       labtab[lx]:=cx;lx:=lx+1;
       cx1:=cx; expression([dosym]+fsys,x);
       if x.typ <> bool then error(34);
       cx2:=cx; gen(jpc,0,0);
       if sym=dosym then getsym else error(37);
       statement(fsys); gen(jmp,0,cx1); code[cx2].a:=cx;
-      labtab[lx]:=cx;lx:=lx+1
+      labtab[lx]:=cx;lx:=lx+1;
+      outrep(cx, cx1)
     end;
 
     { add repeat until }
@@ -1200,18 +1246,40 @@ procedure block (fsys:symset; level:integer);
       var x:item;
     begin  { repeatstatement }
       getsym;
+      enterrep;
       labtab[lx]:=cx;lx:=lx+1;
       cx1:=cx;
       statement([untilsym]);
       
       if sym=untilsym then getsym else error(77);
 
+      cx2 := cx;
       expression(fsys, x);
       if x.typ <> bool then error(34);
       gen(jpc,0,cx1);
       labtab[lx]:=cx;lx:=lx+1;
+      outrep(cx, cx2); 
     end;  { repeatstatement }
       
+    procedure breakstatement;
+    begin
+      if rx = 0 then error(90)
+      else begin
+        gen(jmp, 0, brkt[rx]);
+        brkt[rx] := cx - 1
+      end;
+      getsym
+    end;
+
+    procedure continuestatement;
+    begin
+      if rx = 0 then error(90)
+      else begin
+        gen(jmp, 0, cont[rx]);
+        cont[rx] := cx - 1
+      end;
+      getsym
+    end;
 
     procedure call;
       var x:  item;
@@ -1349,19 +1417,32 @@ procedure block (fsys:symset; level:integer);
 
   begin  { statement }
     test(statbegsys+[ident],fsys,13);
-    if sym=ident then  assignment
+    case sym of
+      ident:        assignment;
+      callsym:      call;
+      ifsym:        ifstatement;
+      beginsym:     compound;
+      whilesym:     whilestatement;
+      repeatsym:    repeatstatement;
+      forsym:       forstatement;
+      casesym:      casestatement;
+      breaksym:     breakstatement;
+      continuesym:  continuestatement;
+    end; 
+  {  if sym=ident then  assignment
     else if sym=callsym then call
     else   if sym=ifsym then  ifstatement
     else   if sym=beginsym then compound
     else    if sym=whilesym then whilestatement
     else    if sym=repeatsym then repeatstatement
     else    if sym=forsym then forstatement
-    else    if sym=casesym then casestatement;
-    test(fsys+[elsesym],[],13)
+    else    if sym=casesym then casestatement; }
+    test(fsys+[elsesym],[],13) 
   end;   { statement }
 
 begin  { block }
   prt:=tx;
+  rx:=0; { repetition table index }
   dx:=3; tx0:=tx; nametab[tx].adr:=cx;
   if level > levmax then error(4);
   enterblock ;
