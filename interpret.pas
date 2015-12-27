@@ -7,11 +7,11 @@ program interpret(input,output,fcode);
      types=(notyp,ints,chars,arrays);
      opcod = (lit,lod,ilod,loda,lodt,sto,lodb,cpyb,jmp,jpc,red,wrt,
             cal,retp,endp,udis,opac,entp,ands,ors,nots,imod,mus,add,
-            sub,mult,idiv,eq,ne,ls,le,gt,ge,ctop);  { opration code }
+            sub,mult,idiv,eq,ne,ls,le,gt,ge,ctop,opf);  { opration code }
      instruction = packed record
                      f:opcod;
-                     l:0..levmax;
-                     a:0..amax;
+                     l:-levmax..levmax;
+                     a:-amax..amax;
                    end;
      var pc,base,top:integer;  { program-,base-,topstack-register }
          oldtop:integer;
@@ -82,6 +82,10 @@ program interpret(input,output,fcode);
                  oldtop:=top;
                  top:=top+3
                end;
+          opf:begin
+                oldtop:=top + a;
+                top := top + a + 3;
+              end;
           cal: begin  { generate new block mark }
                  s[oldtop+1]:=pc;
                  s[oldtop+2]:=display[l]; s[oldtop+3]:=base;
