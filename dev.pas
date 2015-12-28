@@ -115,8 +115,6 @@ var ch:char;           { last character read }
     dir:dirstr;
     name:namestr;
     ext:extstr;
-    fakeitem: item;
-    fakesz: integer;
 {*********************************************************}
 
 procedure initial;
@@ -233,7 +231,7 @@ end;  { error }
 procedure getsym;
   label 1;
   var i,k,j:integer;
-
+      inzs: boolean;
   procedure getch;
   begin  { getch }
     if cc=ll then   { get character to end of line }
@@ -256,16 +254,19 @@ procedure getsym;
     end;
     cc:=cc+1; ch:=line[cc];
 
-    if ch = '{' then
+    if (ch = '{') and not inzs then
       begin
+        inzs := true;
         while ch <> '}' do getch;
         getch;
+        inzs := false
       end;
 
   end;   { getch }
 
 begin  { getsym }
   1:
+  inzs := false;
   while ch=' ' do getch;
   case ch of
   'a','b','c','d','e','f','g','h','i','j','k','l','m','n',
@@ -1493,9 +1494,8 @@ procedure block (fsys:symset; level:integer);
                { writeln(lastp);
                 writeln(cp);}
 
-                if cp>=lastp
-                then error(29)
-                else begin
+                if cp>lastp then error(29)
+                else if cp < lastp then begin
                   cp :=cp+1;
                   if nametab[cp].normal  then
                   begin {value parameter}
