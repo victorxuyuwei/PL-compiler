@@ -1,5 +1,8 @@
 /*
 !.gitignore
-!dev.pas
+!pl.pas
 !interpret.pas
+!samples/
+!samples/*
+!README.md
 
